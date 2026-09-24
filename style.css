@@ -1,0 +1,292 @@
+* { box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: #111827;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+.app {
+  width: 68%;
+  max-width: 1120px;
+  margin: 28px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+h2 {
+  margin: 0;
+  padding: 0 4px;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.panel {
+  background: #1f2937;
+  border-radius: 18px;
+  padding: 20px 22px 18px;
+  box-shadow: 0 16px 50px #0007;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wavebox {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wave-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.viewport {
+  width: 100%;
+  height: clamp(128px, 18vh, 168px);
+  min-height: 128px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #334155;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 28px;
+  margin: 0;
+}
+
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+button,
+a,
+select,
+.file-label {
+  border: 0;
+  border-radius: 10px;
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 15px;
+  line-height: 1.2;
+  background: #f3f4f6;
+  color: #111827;
+  text-decoration: none;
+}
+
+button,
+a,
+.file-label {
+  cursor: pointer;
+}
+
+button,
+select,
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primary {
+  background: #22c55e;
+  font-weight: 700;
+}
+
+.stop {
+  background: #ef4444;
+  color: #fff;
+}
+
+.upload {
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-weight: 700;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.3;
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+
+input[type="range"] {
+  width: 168px;
+  height: 22px;
+  margin: 0;
+  accent-color: #93c5fd;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+.status {
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.filename {
+  font-size: 14px;
+  color: #93c5fd;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer {
+  min-width: 88px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.speed-value {
+  min-width: 48px;
+  display: inline-block;
+  text-align: right;
+  color: #fff;
+  font-weight: 700;
+}
+
+audio {
+  display: none !important;
+}
+
+.divider {
+  height: 1px;
+  margin: 0;
+  background: #334155;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px 28px;
+  margin: 0;
+  padding: 4px 2px 2px;
+}
+
+.settings label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  white-space: normal;
+}
+
+.settings input[type="range"] {
+  width: 100%;
+  max-width: 280px;
+}
+
+.note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+@media (max-width: 1100px) {
+  .app {
+    width: 88%;
+  }
+}
+
+@media (max-width: 700px) {
+  .app {
+    width: 100%;
+    margin: 0 auto;
+    padding: 12px 14px 20px;
+    gap: 10px;
+  }
+
+  .panel {
+    padding: 14px 12px 14px;
+    gap: 14px;
+    border-radius: 14px;
+  }
+
+  .viewport {
+    height: clamp(120px, 22vh, 160px);
+    min-height: 120px;
+  }
+
+  button,
+  a,
+  select,
+  .file-label {
+    min-height: 36px;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  .controls {
+    gap: 12px 18px;
+  }
+
+  .control-group {
+    gap: 8px;
+  }
+
+  label,
+  .status,
+  .filename {
+    font-size: 13px;
+  }
+
+  .filename {
+    max-width: 100%;
+  }
+
+  input[type="range"] {
+    width: min(160px, 46vw);
+  }
+
+  .settings {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}

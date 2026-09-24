@@ -4,161 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Dual Speech Waveform Comparator</title>
-<style>
-body{
-  margin:0;background:#111827;color:#f8fafc;
-  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
-  min-height:100vh;display:grid;place-items:center
-}
-.app{width:min(1280px,97vw)}
-.panel{background:#1f2937;border-radius:18px;padding:18px;box-shadow:0 16px 50px #0007}
-.wavebox{margin-bottom:18px}
-.wave-title{font-size:15px;color:#e2e8f0;margin:0 0 7px;font-weight:700}
-.viewport{overflow-x:auto;background:#fff;border-radius:14px;border:1px solid #334155}
-canvas{display:block;background:#fff}
-.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
-button,a,select,.file-label{
-  border:0;border-radius:12px;padding:10px 14px;font-size:15px;
-  background:#f3f4f6;color:#111827;text-decoration:none
-}
-button,a,.file-label{cursor:pointer}
-.primary{background:#22c55e;font-weight:700}
-.stop{background:#ef4444;color:white}
-.upload{background:#dbeafe;color:#1e3a8a;font-weight:700}
-button:disabled{opacity:.45;cursor:not-allowed}
-label{font-size:14px;color:#cbd5e1}
-input[type=range]{width:180px}
-input[type=file]{display:none}
-.status{color:#cbd5e1;font-size:13px}
-.filename{font-size:13px;color:#93c5fd;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.timer{min-width:95px;text-align:center;font-variant-numeric:tabular-nums;font-size:16px;font-weight:700}
-.speed-value{min-width:48px;display:inline-block;text-align:right;color:#fff;font-weight:700}
-audio{width:100%;margin-top:8px}
-.note{font-size:13px;color:#94a3b8;line-height:1.7;margin-top:10px}
-.divider{height:1px;background:#334155;margin:12px 0 18px}
-</style>
-
-<style>
-*{box-sizing:border-box}
-html,body{width:100%;height:100%;margin:0;overflow:hidden}
-body{min-height:0;display:block}
-.app{
-  width:100vw;height:100dvh;
-  padding:4px;
-  display:flex;flex-direction:column;
-  gap:3px;
-}
-h2{
-  margin:0;
-  font-size:clamp(12px,2vw,18px);
-  line-height:1.1;
-  flex:0 0 auto;
-}
-.panel{
-  flex:1 1 auto;
-  min-height:0;
-  padding:4px;
-  border-radius:8px;
-  box-shadow:none;
-  display:grid;
-  grid-template-rows:minmax(0,1fr) 1px minmax(0,1fr) 1px auto auto;
-  gap:3px;
-}
-.wavebox{
-  margin:0;
-  min-height:0;
-  display:grid;
-  grid-template-rows:auto minmax(0,1fr) auto 0px;
-  gap:2px;
-}
-.wave-title{
-  font-size:clamp(9px,1.3vw,12px);
-  margin:0;
-  line-height:1.05;
-}
-.viewport{
-  min-height:0;
-  width:100%;
-  overflow:hidden;
-  border-radius:6px;
-}
-canvas{
-  display:block;
-  width:100%;
-  height:100%;
-  min-height:58px;
-}
-.controls{
-  gap:3px;
-  margin-top:2px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-button,a,select,.file-label{
-  border-radius:6px;
-  padding:4px 6px;
-  min-height:22px;
-  font-size:clamp(8px,1.1vw,11px);
-  line-height:1;
-}
-label{
-  font-size:clamp(8px,1.1vw,11px);
-  display:flex;
-  align-items:center;
-  gap:2px;
-  white-space:nowrap;
-}
-input[type=range]{
-  width:clamp(58px,10vw,105px);
-  height:15px;
-}
-.status,.filename{
-  font-size:clamp(7px,1vw,10px);
-  max-width:24vw;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.timer,.speed-value{
-  min-width:auto;
-  font-size:clamp(8px,1vw,10px);
-}
-audio{display:none!important}
-.divider{margin:0;height:1px}
-.note{
-  margin:0;
-  font-size:clamp(7px,.95vw,9px);
-  line-height:1.15;
-  max-height:22px;
-  overflow:hidden;
-}
-
-/* 手機 */
-@media (max-width:600px){
-  .app{padding:2px;gap:2px}
-  h2{font-size:11px}
-  .panel{padding:2px;gap:2px}
-  .wave-title{font-size:8px}
-  button,a,select,.file-label{
-    padding:3px 4px;
-    min-height:20px;
-    font-size:8px;
-  }
-  label,.status,.filename,.timer,.speed-value{font-size:7.5px}
-  input[type=range]{width:52px;height:13px}
-  .status,.filename{max-width:30vw}
-  .note{display:none}
-}
-
-/* 橫向手機或很矮的螢幕 */
-@media (max-height:560px){
-  h2{display:none}
-  .wave-title{font-size:7px}
-  button,a,select,.file-label{min-height:18px;padding:2px 4px}
-  .panel{grid-template-rows:minmax(0,1fr) 1px minmax(0,1fr) 1px auto}
-  .note{display:none}
-}
-</style>
+<link rel="stylesheet" href="style.css">
 
 </head>
 <body>
@@ -173,18 +19,23 @@ audio{display:none!important}
     </div>
 
     <div class="controls">
-      <label class="file-label upload" for="uploadFile">⬆ 上傳 MP3 / WAV</label>
-      <input id="uploadFile" type="file" accept=".mp3,.wav,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave">
+      <div class="control-group">
+        <label class="file-label upload" for="uploadFile">⬆ 上傳 MP3 / WAV</label>
+        <input id="uploadFile" type="file" accept=".mp3,.wav,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave">
+        <span id="refFilename" class="filename"></span>
+      </div>
 
-      <span id="refFilename" class="filename"></span>
+      <div class="control-group">
+        <button id="refPlay" disabled>▶ 播放參考音</button>
+        <button id="refPause" disabled>⏸ 暫停</button>
+      </div>
 
-      <button id="refPlay" disabled>▶ 播放參考音</button>
-      <button id="refPause" disabled>⏸ 暫停</button>
-
-      <label>播放速度
-        <input id="refSpeed" type="range" min="0.5" max="2" step="0.1" value="1">
-        <span id="refSpeedValue" class="speed-value">1.0×</span>
-      </label>
+      <div class="control-group">
+        <label>播放速度
+          <input id="refSpeed" type="range" min="0.5" max="2" step="0.1" value="1">
+          <span id="refSpeedValue" class="speed-value">1.0×</span>
+        </label>
+      </div>
 
       <span id="refStatus" class="status">尚未上傳音檔</span>
     </div>
@@ -201,27 +52,35 @@ audio{display:none!important}
     </div>
 
     <div class="controls">
-      <label>錄音長度
-        <select id="duration">
-          <option value="1">1 秒</option><option value="2">2 秒</option>
-          <option value="3">3 秒</option><option value="4">4 秒</option>
-          <option value="5" selected>5 秒</option><option value="6">6 秒</option>
-          <option value="7">7 秒</option><option value="8">8 秒</option>
-          <option value="9">9 秒</option><option value="10">10 秒</option>
-        </select>
-      </label>
+      <div class="control-group">
+        <label>錄音長度
+          <select id="duration">
+            <option value="1">1 秒</option><option value="2">2 秒</option>
+            <option value="3">3 秒</option><option value="4">4 秒</option>
+            <option value="5" selected>5 秒</option><option value="6">6 秒</option>
+            <option value="7">7 秒</option><option value="8">8 秒</option>
+            <option value="9">9 秒</option><option value="10">10 秒</option>
+          </select>
+        </label>
+      </div>
 
-      <button id="start" class="primary">● 開始錄音</button>
-      <button id="stop" class="stop" disabled>■ 提前停止</button>
-      <span id="timer" class="timer">0.0 / 5s</span>
+      <div class="control-group">
+        <button id="start" class="primary">● 開始錄音</button>
+        <button id="stop" class="stop" disabled>■ 提前停止</button>
+        <span id="timer" class="timer">0.0 / 5s</span>
+      </div>
 
-      <button id="micPlay" disabled>▶ 播放錄音</button>
-      <button id="micPause" disabled>⏸ 暫停</button>
+      <div class="control-group">
+        <button id="micPlay" disabled>▶ 播放錄音</button>
+        <button id="micPause" disabled>⏸ 暫停</button>
+      </div>
 
-      <label>播放速度
-        <input id="micSpeed" type="range" min="0.5" max="2" step="0.1" value="1">
-        <span id="micSpeedValue" class="speed-value">1.0×</span>
-      </label>
+      <div class="control-group">
+        <label>播放速度
+          <input id="micSpeed" type="range" min="0.5" max="2" step="0.1" value="1">
+          <span id="micSpeedValue" class="speed-value">1.0×</span>
+        </label>
+      </div>
 
       <a id="download" style="display:none">下載錄音 MP3</a>
       <span id="micStatus" class="status">待命</span>
@@ -232,7 +91,7 @@ audio{display:none!important}
 
   <div class="divider"></div>
 
-  <div class="controls">
+  <div class="settings">
     <label>兩框共同時間展開
       <input id="zoom" type="range" min="100" max="1800" step="50" value="550">
     </label>
