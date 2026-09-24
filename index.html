@@ -92,8 +92,13 @@
   <div class="divider"></div>
 
   <div class="settings">
-    <label>兩框共同時間展開
-      <input id="zoom" type="range" min="100" max="1800" step="50" value="550">
+    <label class="zoom-setting">
+      <span class="setting-name">時間軸縮放 <span id="zoomValue" class="zoom-value">1.0×</span></span>
+      <span class="zoom-slider">
+        <span class="zoom-end">縮小</span>
+        <input id="zoom" type="range" min="0" max="1000" step="1" value="0">
+        <span class="zoom-end">放大</span>
+      </span>
     </label>
 
     <label>參考音波形高度
@@ -140,7 +145,26 @@ let autoTimer=null,tick=null,t0=0;
 
 const H=150,MINW=1600,PAD=45;
 const D=()=>Number(durationSel.value);
-const Z=()=>Number(zoom.value);
+const ZOOM_MAX=16;
+const zoomValue=$('zoomValue');
+
+function zoomFactor(){
+  const t=Math.max(0,Math.min(1,Number(zoom.value)/1000));
+  return Math.pow(ZOOM_MAX,t);
+}
+
+function waveSec(samples,sr,placeholder){
+  return samples&&samples.length?samples.length/sr:placeholder;
+}
+
+function timelineMetrics(sec,z){
+  const frame=Math.max(1,refViewport.clientWidth||micViewport.clientWidth||280);
+  const padCss=Math.min(24,frame*.05);
+  const fitSec=Math.max(waveSec(refSamples,refSR,5),waveSec(micSamples,micSR,D()),.1);
+  const pxPerSecCss=(Math.max(1,frame-padCss*2)/fitSec)*z;
+  const cssW=Math.max(frame,padCss*2+sec*pxPerSecCss);
+  return {padCss,pxPerSecCss,cssW,sec};
+}
 
 function merge(arr){
   let n=arr.reduce((s,x)=>s+x.length,0),o=new Float32Array(n),p=0;
@@ -148,12 +172,14 @@ function merge(arr){
   return o;
 }
 
-function fitCanvas(canvas){
-  const box=canvas.parentElement.getBoundingClientRect();
+function prepareCanvas(canvas,cssW){
+  const viewport=canvas.parentElement;
   const dpr=Math.min(window.devicePixelRatio||1,2);
-  const w=Math.max(280,Math.floor(box.width*dpr));
-  const h=Math.max(70,Math.floor(box.height*dpr));
-
+  const cssH=Math.max(1,viewport.clientHeight);
+  const w=Math.max(1,Math.floor(cssW*dpr));
+  const h=Math.max(70,Math.floor(cssH*dpr));
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px';
   if(canvas.width!==w || canvas.height!==h){
     canvas.width=w;
     canvas.height=h;
@@ -161,7 +187,7 @@ function fitCanvas(canvas){
   return {w,h,dpr};
 }
 
-function drawGrid(ctx,canvas,duration){
+function drawGrid(ctx,canvas,duration,pad,usable){
   const w=canvas.width,h=canvas.height;
 
   ctx.fillStyle='#fff';
@@ -170,12 +196,7 @@ function drawGrid(ctx,canvas,duration){
   ctx.strokeStyle='#e5e7eb';
   ctx.lineWidth=1;
 
-  const left=Math.min(PAD,w*.05);
-  const right=left;
-  const usable=Math.max(1,w-left-right);
   const sec=Math.max(.1,duration);
-
-  // Automatic time marks: 1 second if enough room, otherwise 2/5/10 s.
   let step=1;
   const pxPerSec=usable/sec;
   if(pxPerSec<28) step=2;
@@ -183,7 +204,7 @@ function drawGrid(ctx,canvas,duration){
   if(pxPerSec<7) step=10;
 
   for(let s=0;s<=Math.ceil(sec);s+=step){
-    const x=left+(s/sec)*usable;
+    const x=pad+(s/sec)*usable;
     ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
 
     if(h>75){
@@ -199,13 +220,14 @@ function drawGrid(ctx,canvas,duration){
 
 function drawWave(canvas,ctx,samples,sr,gain,t=null,placeholderSec=5){
   const sec=samples&&samples.length?samples.length/sr:placeholderSec;
-  const {w,h}=fitCanvas(canvas);
+  const m=timelineMetrics(sec,zoomFactor());
+  const {w,h,dpr}=prepareCanvas(canvas,m.cssW);
+  const pad=m.padCss*dpr;
+  const usable=Math.max(1,sec*m.pxPerSecCss*dpr);
 
-  drawGrid(ctx,canvas,sec);
+  drawGrid(ctx,canvas,sec,pad,usable);
 
-  const left=Math.min(PAD,w*.05);
-  const right=left;
-  const usable=Math.max(1,Math.floor(w-left-right));
+  const left=pad;
 
   if(samples&&samples.length){
     const mid=h/2;
@@ -543,10 +565,76 @@ micSpeed.oninput=()=>{
   micAudio.playbackRate=r;
 };
 
+let appliedZoom=zoomFactor();
+let scrollLock=false;
+
+function updateZoomLabel(){
+  zoomValue.textContent=zoomFactor().toFixed(1)+'×';
+}
+
+function centerTime(viewport,sec,z){
+  const m=timelineMetrics(sec,z);
+  const x=viewport.scrollLeft+viewport.clientWidth/2;
+  const t=(x-m.padCss)/m.pxPerSecCss;
+  return Math.max(0,Math.min(sec,t));
+}
+
+function scrollForCenter(viewport,sec,z,t){
+  const m=timelineMetrics(sec,z);
+  const x=m.padCss+Math.max(0,Math.min(sec,t))*m.pxPerSecCss;
+  const maxScroll=Math.max(0,m.cssW-viewport.clientWidth);
+  return Math.max(0,Math.min(maxScroll,x-viewport.clientWidth/2));
+}
+
+function syncScroll(from,to){
+  if(scrollLock)return;
+  scrollLock=true;
+  if(to.scrollLeft!==from.scrollLeft)to.scrollLeft=from.scrollLeft;
+  scrollLock=false;
+}
+
+function bindPan(viewport){
+  let dragging=false,startX=0,startScroll=0;
+  viewport.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    dragging=true;
+    startX=e.clientX;
+    startScroll=viewport.scrollLeft;
+    viewport.classList.add('dragging');
+    viewport.setPointerCapture(e.pointerId);
+  });
+  const end=()=>{
+    dragging=false;
+    viewport.classList.remove('dragging');
+  };
+  viewport.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    viewport.scrollLeft=startScroll-(e.clientX-startX);
+  });
+  viewport.addEventListener('pointerup',end);
+  viewport.addEventListener('pointercancel',end);
+}
+
+refViewport.addEventListener('scroll',()=>syncScroll(refViewport,micViewport));
+micViewport.addEventListener('scroll',()=>syncScroll(micViewport,refViewport));
+bindPan(refViewport);
+bindPan(micViewport);
+
 zoom.oninput=()=>{
+  const refSec=waveSec(refSamples,refSR,5);
+  const micSec=waveSec(micSamples,micSR,D());
+  const anchor=centerTime(refViewport,refSec,appliedZoom);
+  appliedZoom=zoomFactor();
+  updateZoomLabel();
   drawRef(refAudio.currentTime||null);
   drawMic(micAudio.currentTime||null);
+  scrollLock=true;
+  refViewport.scrollLeft=scrollForCenter(refViewport,refSec,appliedZoom,anchor);
+  micViewport.scrollLeft=scrollForCenter(micViewport,micSec,appliedZoom,anchor);
+  scrollLock=false;
 };
+
+updateZoomLabel();
 
 refGain.oninput=()=>drawRef(refAudio.currentTime||null);
 micGain.oninput=()=>drawMic(micAudio.currentTime||null);
