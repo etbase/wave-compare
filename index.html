@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dual Speech Waveform Comparator</title>
+<style>
+body{
+  margin:0;background:#111827;color:#f8fafc;
+  font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  min-height:100vh;display:grid;place-items:center
+}
+.app{width:min(1280px,97vw)}
+.panel{background:#1f2937;border-radius:18px;padding:18px;box-shadow:0 16px 50px #0007}
+.wavebox{margin-bottom:18px}
+.wave-title{font-size:15px;color:#e2e8f0;margin:0 0 7px;font-weight:700}
+.viewport{overflow-x:auto;background:#fff;border-radius:14px;border:1px solid #334155}
+canvas{display:block;background:#fff}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+button,a,select,.file-label{
+  border:0;border-radius:12px;padding:10px 14px;font-size:15px;
+  background:#f3f4f6;color:#111827;text-decoration:none
+}
+button,a,.file-label{cursor:pointer}
+.primary{background:#22c55e;font-weight:700}
+.stop{background:#ef4444;color:white}
+.upload{background:#dbeafe;color:#1e3a8a;font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+label{font-size:14px;color:#cbd5e1}
+input[type=range]{width:180px}
+input[type=file]{display:none}
+.status{color:#cbd5e1;font-size:13px}
+.filename{font-size:13px;color:#93c5fd;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.timer{min-width:95px;text-align:center;font-variant-numeric:tabular-nums;font-size:16px;font-weight:700}
+.speed-value{min-width:48px;display:inline-block;text-align:right;color:#fff;font-weight:700}
+audio{width:100%;margin-top:8px}
+.note{font-size:13px;color:#94a3b8;line-height:1.7;margin-top:10px}
+.divider{height:1px;background:#334155;margin:12px 0 18px}
+</style>
+
+<style>
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden}
+body{min-height:0;display:block}
+.app{
+  width:100vw;height:100dvh;
+  padding:4px;
+  display:flex;flex-direction:column;
+  gap:3px;
+}
+h2{
+  margin:0;
+  font-size:clamp(12px,2vw,18px);
+  line-height:1.1;
+  flex:0 0 auto;
+}
+.panel{
+  flex:1 1 auto;
+  min-height:0;
+  padding:4px;
+  border-radius:8px;
+  box-shadow:none;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) 1px minmax(0,1fr) 1px auto auto;
+  gap:3px;
+}
+.wavebox{
+  margin:0;
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto 0px;
+  gap:2px;
+}
+.wave-title{
+  font-size:clamp(9px,1.3vw,12px);
+  margin:0;
+  line-height:1.05;
+}
+.viewport{
+  min-height:0;
+  width:100%;
+  overflow:hidden;
+  border-radius:6px;
+}
+canvas{
+  display:block;
+  width:100%;
+  height:100%;
+  min-height:58px;
+}
+.controls{
+  gap:3px;
+  margin-top:2px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+button,a,select,.file-label{
+  border-radius:6px;
+  padding:4px 6px;
+  min-height:22px;
+  font-size:clamp(8px,1.1vw,11px);
+  line-height:1;
+}
+label{
+  font-size:clamp(8px,1.1vw,11px);
+  display:flex;
+  align-items:center;
+  gap:2px;
+  white-space:nowrap;
+}
+input[type=range]{
+  width:clamp(58px,10vw,105px);
+  height:15px;
+}
+.status,.filename{
+  font-size:clamp(7px,1vw,10px);
+  max-width:24vw;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.timer,.speed-value{
+  min-width:auto;
+  font-size:clamp(8px,1vw,10px);
+}
+audio{display:none!important}
+.divider{margin:0;height:1px}
+.note{
+  margin:0;
+  font-size:clamp(7px,.95vw,9px);
+  line-height:1.15;
+  max-height:22px;
+  overflow:hidden;
+}
+
+/* 手機 */
+@media (max-width:600px){
+  .app{padding:2px;gap:2px}
+  h2{font-size:11px}
+  .panel{padding:2px;gap:2px}
+  .wave-title{font-size:8px}
+  button,a,select,.file-label{
+    padding:3px 4px;
+    min-height:20px;
+    font-size:8px;
+  }
+  label,.status,.filename,.timer,.speed-value{font-size:7.5px}
+  input[type=range]{width:52px;height:13px}
+  .status,.filename{max-width:30vw}
+  .note{display:none}
+}
+
+/* 橫向手機或很矮的螢幕 */
+@media (max-height:560px){
+  h2{display:none}
+  .wave-title{font-size:7px}
+  button,a,select,.file-label{min-height:18px;padding:2px 4px}
+  .panel{grid-template-rows:minmax(0,1fr) 1px minmax(0,1fr) 1px auto}
+  .note{display:none}
+}
+</style>
+
+</head>
+<body>
+<div class="app">
+<h2>英語語音雙波形比較器</h2>
+<div class="panel">
+
+  <div class="wavebox">
+    <div class="wave-title">上框｜參考音檔：上傳 MP3 / WAV</div>
+    <div class="viewport" id="refViewport">
+      <canvas id="refWave" width="1600" height="150"></canvas>
+    </div>
+
+    <div class="controls">
+      <label class="file-label upload" for="uploadFile">⬆ 上傳 MP3 / WAV</label>
+      <input id="uploadFile" type="file" accept=".mp3,.wav,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/wave">
+
+      <span id="refFilename" class="filename"></span>
+
+      <button id="refPlay" disabled>▶ 播放參考音</button>
+      <button id="refPause" disabled>⏸ 暫停</button>
+
+      <label>播放速度
+        <input id="refSpeed" type="range" min="0.5" max="2" step="0.1" value="1">
+        <span id="refSpeedValue" class="speed-value">1.0×</span>
+      </label>
+
+      <span id="refStatus" class="status">尚未上傳音檔</span>
+    </div>
+
+    <audio id="refAudio" controls></audio>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="wavebox">
+    <div class="wave-title">下框｜我的錄音：麥克風輸入</div>
+    <div class="viewport" id="micViewport">
+      <canvas id="micWave" width="1600" height="150"></canvas>
+    </div>
+
+    <div class="controls">
+      <label>錄音長度
+        <select id="duration">
+          <option value="1">1 秒</option><option value="2">2 秒</option>
+          <option value="3">3 秒</option><option value="4">4 秒</option>
+          <option value="5" selected>5 秒</option><option value="6">6 秒</option>
+          <option value="7">7 秒</option><option value="8">8 秒</option>
+          <option value="9">9 秒</option><option value="10">10 秒</option>
+        </select>
+      </label>
+
+      <button id="start" class="primary">● 開始錄音</button>
+      <button id="stop" class="stop" disabled>■ 提前停止</button>
+      <span id="timer" class="timer">0.0 / 5s</span>
+
+      <button id="micPlay" disabled>▶ 播放錄音</button>
+      <button id="micPause" disabled>⏸ 暫停</button>
+
+      <label>播放速度
+        <input id="micSpeed" type="range" min="0.5" max="2" step="0.1" value="1">
+        <span id="micSpeedValue" class="speed-value">1.0×</span>
+      </label>
+
+      <a id="download" style="display:none">下載錄音 MP3</a>
+      <span id="micStatus" class="status">待命</span>
+    </div>
+
+    <audio id="micAudio" controls></audio>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="controls">
+    <label>兩框共同時間展開
+      <input id="zoom" type="range" min="100" max="1800" step="50" value="550">
+    </label>
+
+    <label>參考音波形高度
+      <input id="refGain" type="range" min="0.5" max="4" step="0.1" value="1.3">
+    </label>
+
+    <label>麥克風波形高度
+      <input id="micGain" type="range" min="0.5" max="4" step="0.1" value="1.3">
+    </label>
+  </div>
+
+  <div class="note">
+    上框只顯示上傳的 MP3 / WAV；下框只顯示麥克風錄音。
+    兩個波形互不覆蓋，但使用相同的時間比例，方便直接比較母語示範與自己的發音。
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+
+const refCanvas=$('refWave'),refCtx=refCanvas.getContext('2d');
+const micCanvas=$('micWave'),micCtx=micCanvas.getContext('2d');
+const refViewport=$('refViewport'),micViewport=$('micViewport');
+
+const upload=$('uploadFile'),refFilename=$('refFilename');
+const refPlay=$('refPlay'),refPause=$('refPause'),refAudio=$('refAudio');
+const refSpeed=$('refSpeed'),refSpeedValue=$('refSpeedValue'),refStatus=$('refStatus');
+
+const durationSel=$('duration'),start=$('start'),stop=$('stop'),timer=$('timer');
+const micPlay=$('micPlay'),micPause=$('micPause'),micAudio=$('micAudio');
+const micSpeed=$('micSpeed'),micSpeedValue=$('micSpeedValue'),download=$('download'),micStatus=$('micStatus');
+
+const zoom=$('zoom'),refGain=$('refGain'),micGain=$('micGain');
+
+let ac,stream,src,proc,mute;
+let recording=false,chunks=[],micSamples=null,refSamples=null;
+let micSR=48000,refSR=48000;
+let micUrl=null,refUrl=null;
+let micSourceNode=null,refSourceNode=null;
+let micRaf=null,refRaf=null;
+let autoTimer=null,tick=null,t0=0;
+
+const H=150,MINW=1600,PAD=45;
+const D=()=>Number(durationSel.value);
+const Z=()=>Number(zoom.value);
+
+function merge(arr){
+  let n=arr.reduce((s,x)=>s+x.length,0),o=new Float32Array(n),p=0;
+  for(const x of arr){o.set(x,p);p+=x.length}
+  return o;
+}
+
+function fitCanvas(canvas){
+  const box=canvas.parentElement.getBoundingClientRect();
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(280,Math.floor(box.width*dpr));
+  const h=Math.max(70,Math.floor(box.height*dpr));
+
+  if(canvas.width!==w || canvas.height!==h){
+    canvas.width=w;
+    canvas.height=h;
+  }
+  return {w,h,dpr};
+}
+
+function drawGrid(ctx,canvas,duration){
+  const w=canvas.width,h=canvas.height;
+
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,w,h);
+
+  ctx.strokeStyle='#e5e7eb';
+  ctx.lineWidth=1;
+
+  const left=Math.min(PAD,w*.05);
+  const right=left;
+  const usable=Math.max(1,w-left-right);
+  const sec=Math.max(.1,duration);
+
+  // Automatic time marks: 1 second if enough room, otherwise 2/5/10 s.
+  let step=1;
+  const pxPerSec=usable/sec;
+  if(pxPerSec<28) step=2;
+  if(pxPerSec<14) step=5;
+  if(pxPerSec<7) step=10;
+
+  for(let s=0;s<=Math.ceil(sec);s+=step){
+    const x=left+(s/sec)*usable;
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
+
+    if(h>75){
+      ctx.fillStyle='#64748b';
+      ctx.font=Math.max(8,Math.floor(h*.065))+'px system-ui';
+      ctx.fillText(s+'s',x+2,Math.max(9,h*.1));
+    }
+  }
+
+  ctx.strokeStyle='#cbd5e1';
+  ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
+}
+
+function drawWave(canvas,ctx,samples,sr,gain,t=null,placeholderSec=5){
+  const sec=samples&&samples.length?samples.length/sr:placeholderSec;
+  const {w,h}=fitCanvas(canvas);
+
+  drawGrid(ctx,canvas,sec);
+
+  const left=Math.min(PAD,w*.05);
+  const right=left;
+  const usable=Math.max(1,Math.floor(w-left-right));
+
+  if(samples&&samples.length){
+    const mid=h/2;
+    const g=Number(gain);
+    const spp=samples.length/usable;
+
+    ctx.strokeStyle='#111827';
+    ctx.lineWidth=1;
+
+    for(let x=0;x<usable;x++){
+      const i0=Math.floor(x*spp);
+      const i1=Math.min(samples.length,Math.max(i0+1,Math.floor((x+1)*spp)));
+
+      let mn=1,mx=-1;
+      for(let i=i0;i<i1;i++){
+        const v=samples[i];
+        if(v<mn)mn=v;
+        if(v>mx)mx=v;
+      }
+
+      mn=Math.max(-1,mn*g);
+      mx=Math.min(1,mx*g);
+
+      ctx.beginPath();
+      ctx.moveTo(left+x,mid-mx*h*.43);
+      ctx.lineTo(left+x,mid-mn*h*.43);
+      ctx.stroke();
+    }
+  }
+
+  if(t!=null){
+    const x=left+(Math.max(0,Math.min(sec,t))/sec)*usable;
+    ctx.strokeStyle='#ef4444';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
+  }
+}
+
+function drawRef(t=null){
+  drawWave(refCanvas,refCtx,refSamples,refSR,refGain.value,t,5);
+}
+
+function drawMic(t=null){
+  drawWave(micCanvas,micCtx,micSamples,micSR,micGain.value,t,D());
+}
+
+async function ensureAC(){
+  if(!ac){
+    try{ac=new AudioContext({sampleRate:48000})}
+    catch(e){ac=new (window.AudioContext||window.webkitAudioContext)()}
+  }
+  if(ac.state==='suspended')await ac.resume();
+}
+
+function to16(f){
+  const o=new Int16Array(f.length);
+  for(let i=0;i<f.length;i++){
+    let s=Math.max(-1,Math.min(1,f[i]));
+    o[i]=s<0?s*32768:s*32767;
+  }
+  return o;
+}
+
+function makeMp3(samples,sr){
+  const pcm=to16(samples);
+  const enc=new lamejs.Mp3Encoder(1,sr,128);
+  const parts=[];
+
+  for(let i=0;i<pcm.length;i+=1152){
+    const b=enc.encodeBuffer(pcm.subarray(i,i+1152));
+    if(b.length)parts.push(new Uint8Array(b));
+  }
+
+  const e=enc.flush();
+  if(e.length)parts.push(new Uint8Array(e));
+  return new Blob(parts,{type:'audio/mpeg'});
+}
+
+upload.onchange=async e=>{
+  const file=e.target.files&&e.target.files[0];
+  if(!file)return;
+
+  try{
+    await ensureAC();
+
+    refStatus.textContent='讀取音檔…';
+    refFilename.textContent=file.name;
+    refPlay.disabled=true;
+    refPause.disabled=true;
+    upload.disabled=true;
+
+    const buf=await file.arrayBuffer();
+    const decoded=await ac.decodeAudioData(buf.slice(0));
+
+    refSR=decoded.sampleRate;
+    refSamples=new Float32Array(decoded.length);
+
+    if(decoded.numberOfChannels===1){
+      refSamples.set(decoded.getChannelData(0));
+    }else{
+      for(let ch=0;ch<decoded.numberOfChannels;ch++){
+        const data=decoded.getChannelData(ch);
+        for(let i=0;i<decoded.length;i++){
+          refSamples[i]+=data[i]/decoded.numberOfChannels;
+        }
+      }
+    }
+
+    if(refUrl)URL.revokeObjectURL(refUrl);
+    refUrl=URL.createObjectURL(file);
+    refAudio.src=refUrl;
+    refAudio.playbackRate=Number(refSpeed.value);
+
+    drawRef();
+    refViewport.scrollLeft=0;
+
+    refPlay.disabled=false;
+    refPause.disabled=false;
+    upload.disabled=false;
+
+    refStatus.textContent='參考音檔完成｜'+(refSamples.length/refSR).toFixed(2)+' 秒｜'+refSR+' Hz';
+
+  }catch(err){
+    console.error(err);
+    upload.disabled=false;
+    refStatus.textContent='音檔讀取失敗';
+    alert('無法讀取這個音檔：'+err.message);
+  }
+};
+
+start.onclick=async()=>{
+  try{
+    await ensureAC();
+
+    micSR=ac.sampleRate;
+
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:{
+        channelCount:1,
+        echoCancellation:false,
+        noiseSuppression:false,
+        autoGainControl:false
+      }
+    });
+
+    src=ac.createMediaStreamSource(stream);
+    proc=ac.createScriptProcessor(2048,1,1);
+    mute=ac.createGain();
+    mute.gain.value=0;
+
+    chunks=[];
+    micSamples=null;
+    recording=true;
+    t0=performance.now();
+
+    src.connect(proc);
+    proc.connect(mute);
+    mute.connect(ac.destination);
+
+    proc.onaudioprocess=e=>{
+      if(recording){
+        chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      }
+    };
+
+    start.disabled=true;
+    stop.disabled=false;
+    micPlay.disabled=true;
+    micPause.disabled=true;
+    durationSel.disabled=true;
+    download.style.display='none';
+
+    micStatus.textContent='錄音中… '+micSR+' Hz';
+
+    tick=setInterval(()=>{
+      timer.textContent=
+        Math.min(D(),(performance.now()-t0)/1000).toFixed(1)
+        +' / '+D()+'s';
+    },50);
+
+    autoTimer=setTimeout(()=>finishRecording(true),D()*1000);
+
+  }catch(e){
+    micStatus.textContent='麥克風錯誤';
+    alert('麥克風無法使用：'+e.message);
+  }
+};
+
+function stopTimers(){
+  if(autoTimer)clearTimeout(autoTimer);
+  if(tick)clearInterval(tick);
+  autoTimer=tick=null;
+}
+
+function finishRecording(auto=false){
+  if(!recording)return;
+
+  recording=false;
+  stopTimers();
+
+  if(proc)proc.disconnect();
+  if(src)src.disconnect();
+  if(mute)mute.disconnect();
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+
+  micSamples=merge(chunks);
+
+  const max=Math.floor(D()*micSR);
+  if(micSamples.length>max)micSamples=micSamples.slice(0,max);
+
+  drawMic();
+  micViewport.scrollLeft=0;
+
+  const blob=makeMp3(micSamples,micSR);
+
+  if(micUrl)URL.revokeObjectURL(micUrl);
+  micUrl=URL.createObjectURL(blob);
+
+  micAudio.src=micUrl;
+  micAudio.playbackRate=Number(micSpeed.value);
+  download.href=micUrl;
+  download.download='microphone-recording-'+Date.now()+'.mp3';
+  download.style.display='inline-block';
+
+  start.disabled=false;
+  stop.disabled=true;
+  micPlay.disabled=false;
+  micPause.disabled=false;
+  durationSel.disabled=false;
+
+  timer.textContent=(micSamples.length/micSR).toFixed(1)+' 秒';
+  micStatus.textContent=auto?'時間到，自動停止':'錄音完成';
+}
+
+stop.onclick=()=>finishRecording(false);
+
+async function ensureRefSource(){
+  await ensureAC();
+  if(!refSourceNode){
+    refSourceNode=ac.createMediaElementSource(refAudio);
+    refSourceNode.connect(ac.destination);
+  }
+}
+
+async function ensureMicSource(){
+  await ensureAC();
+  if(!micSourceNode){
+    micSourceNode=ac.createMediaElementSource(micAudio);
+    micSourceNode.connect(ac.destination);
+  }
+}
+
+refPlay.onclick=async()=>{
+  if(!refSamples)return;
+
+  await ensureRefSource();
+  refAudio.playbackRate=Number(refSpeed.value);
+  await refAudio.play();
+
+  cancelAnimationFrame(refRaf);
+
+  const frame=()=>{
+    refRaf=requestAnimationFrame(frame);
+    drawRef(refAudio.currentTime);
+  };
+
+  frame();
+  refStatus.textContent='播放中… '+refAudio.playbackRate.toFixed(1)+'×';
+};
+
+refPause.onclick=()=>{
+  refAudio.pause();
+  cancelAnimationFrame(refRaf);
+  drawRef(refAudio.currentTime);
+  refStatus.textContent='已暫停';
+};
+
+micPlay.onclick=async()=>{
+  if(!micSamples)return;
+
+  await ensureMicSource();
+  micAudio.playbackRate=Number(micSpeed.value);
+  await micAudio.play();
+
+  cancelAnimationFrame(micRaf);
+
+  const frame=()=>{
+    micRaf=requestAnimationFrame(frame);
+    drawMic(micAudio.currentTime);
+  };
+
+  frame();
+  micStatus.textContent='播放中… '+micAudio.playbackRate.toFixed(1)+'×';
+};
+
+micPause.onclick=()=>{
+  micAudio.pause();
+  cancelAnimationFrame(micRaf);
+  drawMic(micAudio.currentTime);
+  micStatus.textContent='已暫停';
+};
+
+refAudio.onended=()=>{
+  cancelAnimationFrame(refRaf);
+  drawRef();
+  refViewport.scrollLeft=0;
+  refStatus.textContent='參考音播放完畢';
+};
+
+micAudio.onended=()=>{
+  cancelAnimationFrame(micRaf);
+  drawMic();
+  micViewport.scrollLeft=0;
+  micStatus.textContent='錄音播放完畢';
+};
+
+refSpeed.oninput=()=>{
+  const r=Number(refSpeed.value);
+  refSpeedValue.textContent=r.toFixed(1)+'×';
+  refAudio.playbackRate=r;
+};
+
+micSpeed.oninput=()=>{
+  const r=Number(micSpeed.value);
+  micSpeedValue.textContent=r.toFixed(1)+'×';
+  micAudio.playbackRate=r;
+};
+
+zoom.oninput=()=>{
+  drawRef(refAudio.currentTime||null);
+  drawMic(micAudio.currentTime||null);
+};
+
+refGain.oninput=()=>drawRef(refAudio.currentTime||null);
+micGain.oninput=()=>drawMic(micAudio.currentTime||null);
+
+durationSel.onchange=()=>{
+  if(!recording){
+    timer.textContent='0.0 / '+D()+'s';
+    if(!micSamples)drawMic();
+  }
+};
+
+drawRef();
+drawMic();
+
+window.addEventListener('resize',()=>{
+  drawRef(refAudio.currentTime||null);
+  drawMic(micAudio.currentTime||null);
+});
+window.addEventListener('orientationchange',()=>{
+  setTimeout(()=>{
+    drawRef(refAudio.currentTime||null);
+    drawMic(micAudio.currentTime||null);
+  },150);
+});
+</script>
+</body>
+</html>
