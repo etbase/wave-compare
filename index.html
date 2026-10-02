@@ -40,6 +40,13 @@
       <span id="refStatus" class="status">尚未上傳音檔</span>
     </div>
 
+    <label class="zoom-setting">
+      <span class="setting-name">時間軸縮放 <span id="refZoomValue" class="zoom-value">1.0×</span></span>
+      <span class="zoom-slider">
+        <input id="refZoom" type="range" min="1" max="10" step="0.1" value="1">
+      </span>
+    </label>
+
     <audio id="refAudio" controls></audio>
   </div>
 
@@ -93,9 +100,9 @@
 
   <div class="settings">
     <label class="zoom-setting">
-      <span class="setting-name">時間軸縮放 <span id="zoomValue" class="zoom-value">1.0×</span></span>
+      <span class="setting-name">時間軸縮放 <span id="micZoomValue" class="zoom-value">1.0×</span></span>
       <span class="zoom-slider">
-        <input id="zoom" type="range" min="0" max="1000" step="1" value="0">
+        <input id="micZoom" type="range" min="1" max="10" step="0.1" value="1">
       </span>
     </label>
 
@@ -110,7 +117,7 @@
 
   <div class="note">
     上框只顯示上傳的 MP3 / WAV；下框只顯示麥克風錄音。
-    兩個波形互不覆蓋，但使用相同的時間比例，方便直接比較母語示範與自己的發音。
+    兩個波形互不覆蓋。上下時間軸可各自縮放，方便比較母語示範與自己的發音。
   </div>
 </div>
 </div>
@@ -131,7 +138,8 @@ const durationSel=$('duration'),start=$('start'),stop=$('stop'),timer=$('timer')
 const micPlay=$('micPlay'),micPause=$('micPause'),micAudio=$('micAudio');
 const micSpeed=$('micSpeed'),micSpeedValue=$('micSpeedValue'),download=$('download'),micStatus=$('micStatus');
 
-const zoom=$('zoom'),refGain=$('refGain'),micGain=$('micGain');
+const refZoom=$('refZoom'),micZoom=$('micZoom'),refGain=$('refGain'),micGain=$('micGain');
+const refZoomValue=$('refZoomValue'),micZoomValue=$('micZoomValue');
 
 let ac,stream,src,proc,mute;
 let recording=false,chunks=[],micSamples=null,refSamples=null;
@@ -143,24 +151,20 @@ let autoTimer=null,tick=null,t0=0;
 
 const H=150,MINW=1600,PAD=45;
 const D=()=>Number(durationSel.value);
-const ZOOM_MAX=16;
-const zoomValue=$('zoomValue');
 
-function zoomFactor(){
-  const t=Math.max(0,Math.min(1,Number(zoom.value)/1000));
-  return Math.pow(ZOOM_MAX,t);
+function zoomOf(input){
+  return Math.max(1,Math.min(10,Number(input.value)||1));
 }
 
 function waveSec(samples,sr,placeholder){
   return samples&&samples.length?samples.length/sr:placeholder;
 }
 
-function timelineMetrics(sec,z){
-  const frame=Math.max(1,refViewport.clientWidth||micViewport.clientWidth||280);
-  const padCss=Math.min(24,frame*.05);
-  const fitSec=Math.max(waveSec(refSamples,refSR,5),waveSec(micSamples,micSR,D()),.1);
-  const pxPerSecCss=(Math.max(1,frame-padCss*2)/fitSec)*z;
-  const cssW=Math.max(frame,padCss*2+sec*pxPerSecCss);
+function timelineMetrics(sec,z,viewport){
+  const frame=Math.max(1,(viewport&&viewport.clientWidth)||280);
+  const cssW=Math.max(1,frame/z);
+  const padCss=Math.min(24,cssW*.05);
+  const pxPerSecCss=Math.max(1,cssW-padCss*2)/Math.max(sec,.1);
   return {padCss,pxPerSecCss,cssW,sec};
 }
 
@@ -216,9 +220,9 @@ function drawGrid(ctx,canvas,duration,pad,usable){
   ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
 }
 
-function drawWave(canvas,ctx,samples,sr,gain,t=null,placeholderSec=5){
+function drawWave(canvas,ctx,samples,sr,gain,zoom,t=null,placeholderSec=5){
   const sec=samples&&samples.length?samples.length/sr:placeholderSec;
-  const m=timelineMetrics(sec,zoomFactor());
+  const m=timelineMetrics(sec,zoom,canvas.parentElement);
   const {w,h,dpr}=prepareCanvas(canvas,m.cssW);
   const pad=m.padCss*dpr;
   const usable=Math.max(1,sec*m.pxPerSecCss*dpr);
@@ -274,11 +278,11 @@ function drawWave(canvas,ctx,samples,sr,gain,t=null,placeholderSec=5){
 }
 
 function drawRef(t=null){
-  drawWave(refCanvas,refCtx,refSamples,refSR,refGain.value,t,5);
+  drawWave(refCanvas,refCtx,refSamples,refSR,refGain.value,zoomOf(refZoom),t,5);
 }
 
 function drawMic(t=null){
-  drawWave(micCanvas,micCtx,micSamples,micSR,micGain.value,t,D());
+  drawWave(micCanvas,micCtx,micSamples,micSR,micGain.value,zoomOf(micZoom),t,D());
 }
 
 async function ensureAC(){
@@ -563,32 +567,8 @@ micSpeed.oninput=()=>{
   micAudio.playbackRate=r;
 };
 
-let appliedZoom=zoomFactor();
-let scrollLock=false;
-
-function updateZoomLabel(){
-  zoomValue.textContent=zoomFactor().toFixed(1)+'×';
-}
-
-function centerTime(viewport,sec,z){
-  const m=timelineMetrics(sec,z);
-  const x=viewport.scrollLeft+viewport.clientWidth/2;
-  const t=(x-m.padCss)/m.pxPerSecCss;
-  return Math.max(0,Math.min(sec,t));
-}
-
-function scrollForCenter(viewport,sec,z,t){
-  const m=timelineMetrics(sec,z);
-  const x=m.padCss+Math.max(0,Math.min(sec,t))*m.pxPerSecCss;
-  const maxScroll=Math.max(0,m.cssW-viewport.clientWidth);
-  return Math.max(0,Math.min(maxScroll,x-viewport.clientWidth/2));
-}
-
-function syncScroll(from,to){
-  if(scrollLock)return;
-  scrollLock=true;
-  if(to.scrollLeft!==from.scrollLeft)to.scrollLeft=from.scrollLeft;
-  scrollLock=false;
+function updateZoomLabel(input,label){
+  label.textContent=zoomOf(input).toFixed(1)+'×';
 }
 
 function bindPan(viewport){
@@ -613,26 +593,23 @@ function bindPan(viewport){
   viewport.addEventListener('pointercancel',end);
 }
 
-refViewport.addEventListener('scroll',()=>syncScroll(refViewport,micViewport));
-micViewport.addEventListener('scroll',()=>syncScroll(micViewport,refViewport));
 bindPan(refViewport);
 bindPan(micViewport);
 
-zoom.oninput=()=>{
-  const refSec=waveSec(refSamples,refSR,5);
-  const micSec=waveSec(micSamples,micSR,D());
-  const anchor=centerTime(refViewport,refSec,appliedZoom);
-  appliedZoom=zoomFactor();
-  updateZoomLabel();
+refZoom.oninput=()=>{
+  updateZoomLabel(refZoom,refZoomValue);
   drawRef(refAudio.currentTime||null);
-  drawMic(micAudio.currentTime||null);
-  scrollLock=true;
-  refViewport.scrollLeft=scrollForCenter(refViewport,refSec,appliedZoom,anchor);
-  micViewport.scrollLeft=scrollForCenter(micViewport,micSec,appliedZoom,anchor);
-  scrollLock=false;
+  refViewport.scrollLeft=0;
 };
 
-updateZoomLabel();
+micZoom.oninput=()=>{
+  updateZoomLabel(micZoom,micZoomValue);
+  drawMic(micAudio.currentTime||null);
+  micViewport.scrollLeft=0;
+};
+
+updateZoomLabel(refZoom,refZoomValue);
+updateZoomLabel(micZoom,micZoomValue);
 
 refGain.oninput=()=>drawRef(refAudio.currentTime||null);
 micGain.oninput=()=>drawMic(micAudio.currentTime||null);
